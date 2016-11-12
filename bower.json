@@ -18,6 +18,6 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "loglevel": "~1.4.0"
+    "loglevel": ">=1.4.0"
   }
 }
