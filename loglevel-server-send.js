@@ -9,24 +9,24 @@
  * @param {Bool} [options.callOriginal=false] If set to true - original loglevel method for logging would be called
  * @example
  * loglevelServerSend(log,{url:'https://example.com/app/log',prefix: function(logSev,message) {
- *     return '[' + new Date().toISOString() + '] ' + logSev + ': ' + message + '\n'   
+ *     return '[' + new Date().toISOString() + '] ' + logSev + ': ' + message + '\n'
  * }})
  */
 var loglevelServerSend = function(logger,options) {
     if (!logger || !logger.methodFactory)
         throw new Error('loglevel instance has to be specified in order to be extended')
-    
-    var _logger          = logger, 
+
+    var _logger          = logger,
         _url             = options && options.url || 'http://localhost:8000/main/log',
         _callOriginal    = options && options.callOriginal || false,
         _prefix          = options && options.prefix,
         _originalFactory = _logger.methodFactory,
         _sendQueue       = [],
         _isSending       = false
-    
+
     _logger.methodFactory = function (methodName, logLevel) {
         var rawMethod = _originalFactory(methodName, logLevel)
-    
+
         return function (message) {
             if (typeof _prefix === 'string')
                 message = _prefix + message
@@ -34,29 +34,33 @@ var loglevelServerSend = function(logger,options) {
                 message = _prefix(methodName,message)
             else
                 message = methodName + ': ' + message
-                        
-            if (_callOriginal) 
+
+            if (_callOriginal)
                 rawMethod(message)
-            
+
             _sendQueue.push(message)
             _sendNextMessage()
         }
     }
     _logger.setLevel(_logger.levels.WARN)
-    
+
     var _sendNextMessage = function(){
         if (!_sendQueue.length || _isSending)
             return
-        
+
         _isSending = true
-        
+
         var msg = _sendQueue.shift(),
             req = new XMLHttpRequest()
-        
+
+        if (typeof(msg) === 'object') {
+          msg = JSON.stringify(msg);
+        }
+
         req.open("POST", _url, true)
         req.setRequestHeader('Content-Type', 'text/plain')
         req.onreadystatechange = function() {
-            if(req.readyState == 4) 
+            if(req.readyState == 4)
             {
                 _isSending = false
                 setTimeout(_sendNextMessage, 0)
@@ -64,4 +68,9 @@ var loglevelServerSend = function(logger,options) {
         }
         req.send(msg)
     }
+    return _logger;
+}
+
+if (typeof module === 'object' && module.exports) {
+    module.exports = loglevelServerSend;
 }
